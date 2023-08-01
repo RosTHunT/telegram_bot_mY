@@ -56,17 +56,28 @@ async def search_cmd(message: types.Message):
         except Exception as e:
             filename_collector = FileNameCollectorPP()
             ydl.add_post_processor(filename_collector)
-            video = ydl.extract_info(f'ytsearch:{arg}', download=True)['entries'][0]
-            try:
-                await message.reply_document(open(filename_collector.filenames[0], 'rb'))
-            except Exception as e:
-                if "File too large for uploading" in str(e):
-                    await message.reply('Помилка, розмір файлу завеликий... спробуйте інший файл')
-                else:
-                    await message.reply(f'Виникла помилка, спробуйте інший файл. {e}')
-            await asyncio.sleep(5)
 
-            os.remove(filename_collector.filenames[0])
+            #отримуємо інформацію про відео
+            video = ydl.extract_info(f'ytsearch:{arg}', download=False)['entries'][0]
+            file_url = video['url']
+            file_size = ydl.urlopen(file_url).info().get('Content-Length')
+
+            #перевіряємо величину файлу, який збираємось скачати(до 20мб)
+            if int(file_size) < 20000000:
+                video = ydl.extract_info(f'ytsearch:{arg}', download=True)['entries'][0]
+                try:
+                    await message.reply_document(open(filename_collector.filenames[0], 'rb'))
+                except Exception as e:
+                    if "File too large for uploading" in str(e):
+                        await message.reply('Помилка, розмір файлу завеликий... спробуйте інший файл')
+                    else:
+                        await message.reply(f'Виникла помилка, спробуйте інший файл. {e}')
+
+                await asyncio.sleep(5)
+                os.remove(filename_collector.filenames[0])
+            else:
+                return await message.reply(f'Виникла помилка, файл занадттовеликий, спробуйте іншу назву файлу.')
+
         else:
             video = ydl.extract_info_async(arg, download=True)
         return filename_collector.filenames[0]
